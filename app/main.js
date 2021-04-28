@@ -227,15 +227,6 @@ function BGMLoad() {
   }
 }
 
-function RythmSoundLoad() {
-  rythmSound = new Howl({
-    src: './assets/sound1.mp3',
-  });
-  rythmSound.on('load', () => {
-  })
-}
-RythmSoundLoad();
-
 // 消すときのイベント
 var countDelIndex = e => {
   // 右クリックのとき
