@@ -291,7 +291,7 @@ function CreateNotes(time, inputNum) {
   stage.batchDraw();
 
   // オブジェクト生成
-  notesObj = {time : _time, point: newCircle, inputNum};
+  var notesObj = {time : _time, point: newCircle, inputNum};
 
   notesObj.point.on('dragmove', function () {
     console.log('dragmove');
