@@ -59,7 +59,6 @@ function CSVtoArray(str) {
 
 var sound = null;
 var soundId = null;
-var rythmSound = null;
 var playingTime = 0;
 var pxPerSec = 50;
 var seekOffsetTime = 0;
@@ -299,7 +298,6 @@ function CreateNotes(time, inputNum) {
   });
 
   notesObj.point.on('dragend', function () {
-    console.log(notesObj.time);
     if (notesObj.point.x() < 0) {
       notesObj.time = 0;
       notesObj.point.x(0);
@@ -319,14 +317,12 @@ var playFunc = () => {
   // これからくるノーツの配列
   var _notes = new Array(petifitNotesArray.length);
   for (var i = 0; i < petifitNotesArray.length; i++) {
-    console.log(petifitNotesArray.length)
     for (var j = 0; j < petifitNotesArray[i].length; j++) {
       if (petifitNotesArray[i][j].time > playingTime) break;
     }
     _notes[i] = petifitNotesArray[i].slice(j);
   }
 
-      console.log(_notes[0].length, _notes[1].length, _notes[2].length, _notes[3].length, _notes[4].length);
   if (!sound.playing()) {
     soundId = sound.play();
 
@@ -554,23 +550,16 @@ window.onload = function(){
 
   // offsetの変更イベント
   inputElm.addEventListener('change', (e) => {
-    console.log(e.target.value)
     if (e.target.value == '') e.target.value = 0;
     changedVal = parseFloat(e.target.value);
     var inputNum = parseInt(e.target.className.slice(-1));
 
-    console.log(petifitOffsetTimeArray)
-
     for (var j = 0; j < petifitNotesArray[inputNum].length; j++) {
-      console.log(petifitNotesArray[inputNum][j].time)
       petifitNotesArray[inputNum][j].time -= petifitOffsetTimeArray[inputNum];
-      console.log(petifitNotesArray[inputNum][j].time)
       petifitNotesArray[inputNum][j].time += changedVal;
-      console.log(petifitNotesArray[inputNum][j].time)
       petifitNotesArray[inputNum][j].point.x(petifitNotesArray[inputNum][j].time * pxPerSec);
     }
     petifitOffsetTimeArray[inputNum] = changedVal;
-    console.log(changedVal);
     stage.batchDraw();
   })
 }
@@ -586,20 +575,14 @@ function GenerateCSV() {
         return 1;
     }
   });
-  console.log(joinedArray);
 
   joinedArray.forEach(function(element){
     var inputNum = element.inputNum;
     var timing = (element.time-petifitOffsetTimeArray[inputNum])/(60/globalBPM);
-    console.log(element.time, petifitOffsetTimeArray[inputNum], globalBPM);
     csvStr = csvStr.concat(timing.toString()
                   + ','
                   + element.inputNum
                   + ',\n');
-    console.log(timing.toString()
-    + ','
-    + element.inputNum
-    + ',\n');
   });
 
   return csvStr;
