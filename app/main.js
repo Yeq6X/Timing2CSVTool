@@ -294,10 +294,12 @@ function CreateNotes(time, inputNum) {
   notesObj = {time : _time, point: newCircle, inputNum};
 
   notesObj.point.on('dragmove', function () {
+    console.log('dragmove');
     notesObj.time = notesObj.point.x()/pxPerSec;
   });
 
   notesObj.point.on('dragend', function () {
+    console.log('dragend');
     if (notesObj.point.x() < 0) {
       notesObj.time = 0;
       notesObj.point.x(0);
