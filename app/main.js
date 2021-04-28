@@ -229,7 +229,7 @@ function BGMLoad() {
 
 function RythmSoundLoad() {
   rythmSound = new Howl({
-    src: '../assets/sound1.mp3',
+    src: './assets/sound1.mp3',
   });
   rythmSound.on('load', () => {
   })
