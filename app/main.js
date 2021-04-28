@@ -299,8 +299,9 @@ function CreateNotes(time, inputNum) {
   });
 
   notesObj.point.on('dragend', function () {
-    console.log('dragend');
+    console.log(notesObj.point.x());
     if (notesObj.point.x() < 0) {
+      console.log('a1');
       notesObj.time = 0;
       notesObj.point.x(0);
       stage.batchDraw();
