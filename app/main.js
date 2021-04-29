@@ -389,21 +389,20 @@ var playFunc = () => {
 
     // 10ミリ秒ごとに更新
     playIntervalId = setInterval(()=>{
+      var _time = new Date().getTime();
+      prevTime = _time;
 
-      if (playingTime < bgmOffset) {
-        _time = new Date().getTime();
+      if (playingTime + (_time - prevTime)/1000 < bgmOffset) {
         playingTime += (_time - prevTime)/1000;
-        prevTime = _time;
       } else if (!sound.playing()) {
+  console.log(sound.seek())
         soundId = sound.play();
-        playingTime = getBgmSeek();
+        console.log(soundId);
       } else {
         playingTime = getBgmSeek();
       }
 
       playingTiming = playingTime/(60/globalBPM);
-      console.log(playingTiming, playingTime)
-      console.log(getBgmSeek());
       seekCursorGroup.x(playingTiming*pxPerBeat);
       seekTimeText.text(Math.round(playingTiming*100)/100);
       timeLineLayer.batchDraw();
