@@ -249,7 +249,10 @@ function BGMLoad() {
 
   if (data != null)
   {
-    if (soundId != null) sound.stop(soundId);
+    if (soundId != null) {
+      sound.stop(soundId);
+      soundId = null;
+    }
     sound = new Howl({
       src: data,
       volume: 0.8,
@@ -347,7 +350,6 @@ function CreateNotes(timimg, inputNum) {
       notesObj.timing = notesObj.point.x()/pxPerBeat;
     }
 
-    console.log(petifitNotesArray)
     var elm;
     // 消す自分自身のインデックスをカウント
     for (var i = 0; i < petifitNotesArray[inputNum].length; i++) {
@@ -435,6 +437,12 @@ document.getElementById('play-button').addEventListener('click', playFunc);
 window.document.onkeydown = function(event){
   if (event.key === ' ') playFunc();
 }
+// 曲再読み込み
+document.getElementById('reload-button').addEventListener('click', ()=> {
+  soundId = null;
+  sound.unload();
+  sound.load();
+})
 
 function getRelativePointerPosition(node) {
   var transform = node.getAbsoluteTransform().copy();
