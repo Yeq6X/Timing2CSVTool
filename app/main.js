@@ -575,6 +575,7 @@ stage.on('click', e => {
  *
  */
 document.getElementById('addNoteButton').addEventListener('click', () => {
+  if (addNoteInputNum < 0) return;
   var newNotes = CreateNotes(addNoteTime, addNoteInputNum)
   // 右クリックイベント
   newNotes.point.on('click', countDelIndex);
