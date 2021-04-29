@@ -249,7 +249,7 @@ function BGMLoad() {
 
   if (data != null)
   {
-    if (sound != null) sound.stop();
+    if (soundId != null) sound.stop(soundId);
     sound = new Howl({
       src: data,
       volume: 0.8,
@@ -395,8 +395,10 @@ var playFunc = () => {
       if (playingTime + (_time - prevTime)/1000 < bgmOffset) {
         playingTime += (_time - prevTime)/1000;
       } else if (!sound.playing()) {
-  console.log(sound.seek())
-        soundId = sound.play();
+        if (soundId == null)
+          soundId = sound.play();
+        else
+          sound.play(soundId);
         console.log(soundId);
       } else {
         playingTime = getBgmSeek();
@@ -423,7 +425,7 @@ var playFunc = () => {
   }
   else {
     isPlaying = false;
-    sound.pause();
+    sound.pause(soundId);
     clearInterval(playIntervalId);
   }
 }
@@ -544,7 +546,7 @@ stage.on('click', e => {
     }
 
     isPlaying = false;
-    sound.pause();
+    sound.pause(soundId);
     clearInterval(playIntervalId);
     playingTime = playingTiming*(60/globalBPM);
     setBgmSeek(playingTime);
