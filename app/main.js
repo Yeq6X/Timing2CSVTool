@@ -7,7 +7,7 @@ document.getElementById('inputFileReset').addEventListener('click', function() {
   var elem = document.getElementById('inputFile');
   elem.value = '';
   var clone = elem.cloneNode(false);
-  elem.parentNode.replaceChild(clone, elem);
+  elem.parentNote.replaceChild(clone, elem);
 
   bsCustomFileInput.init();
 
@@ -59,26 +59,51 @@ function CSVtoArray(str) {
 
 var sound = null;
 var soundId = null;
+var isPlaying = false;
+
+var _date = new Date();
+
+// 時間 seekに関係するところだけ秒単位
 var playingTime = 0;
-var pxPerSec = 50;
-var seekOffsetTime = 0;
+var playingTiming = 0;
+var pxPerBeat = 50;
+var pxPerBeat = 50;
+var bgmDuration = 0;
+var bgmBeatsDuration = window.window.innerWidth-300/pxPerBeat;
+var bgmOffset = 0;
+
 var scrollAmount = 0.3;
 var zoomAmount = 0.04;
 var viewLayerWidth;
 var viewLayerHeight = window.innerHeight;
-var bgmDuration = window.window.innerWidth-300/pxPerSec;
 var topY = 0;
-var timeDisplayBarHeihgt = 20;
+var timingDisplayBarHeihgt = 20;
 var seekBarHeight = 30;
 var petifitRowHeight = 60;
 var petifitNotesArray = [[], [], [], [], [], [], [], [], [], []];
-var petifitOffsetTimeArray = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+var petifitOffsetTimingArray = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 var bgmNotes = [];
-var addNodeTime = 0;
-var addNodeInputNum = 0;
-var delNodeIndex_i = null;
-var delNodeIndex_j = null;
+var addNoteTime = 0;
+var addNoteInputNum = 0;
+var delNoteIndex_i = null;
+var delNoteIndex_j = null;
 var globalBPM = 105;
+
+function setBgmSeek(s) {
+  var seekTime = s-bgmOffset;
+  if (seekTime < 0) {
+    sound.seek(0);
+  } else {
+    sound.seek(seekTime);
+  }
+}
+function getBgmSeek() {
+  return sound.seek() + bgmOffset;
+}
+function layerXtoTiming(x) {
+  return x/pxPerBeat + bgmOffset/(60/globalBPM);
+}
+
 
 // konva
 var width = window.innerWidth-300;
@@ -93,16 +118,17 @@ var stage = new Konva.Stage({
 var staticLayer = new Konva.Layer();
 
 var line = new Konva.Line({
-  points: [0, topY + timeDisplayBarHeihgt + seekBarHeight-1, width, topY + timeDisplayBarHeihgt + seekBarHeight-1],
+  points: [0, topY + timingDisplayBarHeihgt + seekBarHeight-1, width, topY + timingDisplayBarHeihgt + seekBarHeight-1],
   stroke: 'brack',
   strokeWidth: 2,
   lineCap: 'round',
   lineJoin: 'round',
 });
 
+// horizontal line
 for (var i = 1; i < viewLayerHeight/petifitRowHeight; i++) {
   var newLine = new Konva.Line({
-    points: [0, topY + timeDisplayBarHeihgt + seekBarHeight-1 + petifitRowHeight*i, width, topY + timeDisplayBarHeihgt + seekBarHeight-1 + petifitRowHeight*i],
+    points: [0, topY + timingDisplayBarHeihgt + seekBarHeight-1 + petifitRowHeight*i, width, topY + timingDisplayBarHeihgt + seekBarHeight-1 + petifitRowHeight*i],
     stroke: '#ccc',
     strokeWidth: 2,
   });
@@ -121,43 +147,50 @@ var timeLineLayer = new Konva.Layer({
 
 // vertical line
 var linePer1sArray = [];
-for (var i = 0; i < bgmDuration; i++) {
-  var newLineGroup = new Konva.Group({
-    x: pxPerSec*i, y: 0,
-    y: 0,
-  })
-  var newLine = new Konva.Line({
-    points: [0, topY + timeDisplayBarHeihgt, 0, viewLayerHeight],
-    stroke: '#ccc',
-    strokeWidth: 1,
-    offset: {
-      x: 0,
+function setVerticalLine() {
+  for (var i = 0; i < bgmBeatsDuration; i++) {
+    var newLineGroup = new Konva.Group({
+      x: pxPerBeat*i, y: 0,
       y: 0,
-    },
-  });
-  var newTime = new Konva.Text({
-    x: 0, y: 0,
-    fontSize: 16,
-    padding: 3,
-    fontFamily: 'Calibri',
-    text: i,
-    fill: '#aaa',
-    align: 'center',
-    offset: {
-      x: 10,
-      y: 0,
-    },
-  })
+    })
+    var newLine = new Konva.Line({
+      points: [0, topY + timingDisplayBarHeihgt, 0, viewLayerHeight],
+      stroke: '#ccc',
+      strokeWidth: 1,
+      offset: {
+        x: 0,
+        y: 0,
+      },
+    });
+    var newTime = new Konva.Text({
+      x: 0, y: 0,
+      fontSize: 16,
+      padding: 3,
+      fontFamily: 'Calibri',
+      text: i,
+      fill: '#aaa',
+      align: 'center',
+      offset: {
+        x: 10,
+        y: 0,
+      },
+    })
 
-  newLineGroup.add(newLine);
-  newLineGroup.add(newTime);
-  timeLineLayer.add(newLineGroup);
-  linePer1sArray.push(newLineGroup);
+    newLineGroup.add(newLine);
+    newLineGroup.add(newTime);
+    timeLineLayer.add(newLineGroup);
+    linePer1sArray.push(newLineGroup);
+  }
+}
+function clearVerticalLine() {
+  linePer1sArray.forEach(e => {
+    e.destroy();
+  })
 }
 
 // seekCursor
 var seekCursorGroup = new Konva.Group({
-  x: (playingTime-seekOffsetTime)*pxPerSec,
+  x: playingTiming*pxPerBeat,
   y: topY,
   draggable: true,
   dragBoundFunc: function (pos) {
@@ -169,7 +202,7 @@ var seekCursorGroup = new Konva.Group({
 })
 var seekCursorCol = new Konva.Rect({
   width: 25,
-  height: timeDisplayBarHeihgt + seekBarHeight,
+  height: timingDisplayBarHeihgt + seekBarHeight,
   offset: {
     x: 25/2,
     y: 0,
@@ -187,11 +220,11 @@ var seekCursor = new Konva.Line({
 });
 var seekTimeText = new Konva.Text({
   x: 0,
-  y: timeDisplayBarHeihgt,
+  y: timingDisplayBarHeihgt,
   fontSize: 16,
   padding: 7,
   fontFamily: 'Calibri',
-  text: playingTime,
+  text: playingTiming,
   fill: 'black',
   offset: {
     x: 0,
@@ -210,6 +243,10 @@ viewLayerHeight = timeLineLayer.height();
 
 
 function BGMLoad() {
+  var bpmElm = document.getElementById('bpm-input-form');
+  var bpm = parseFloat(bpmElm.value);
+  globalBPM = bpm;
+
   if (data != null)
   {
     if (sound != null) sound.stop();
@@ -218,11 +255,17 @@ function BGMLoad() {
       volume: 0.8,
     });
     sound.on('load', () => {
+      setBgmSeek(0); // offsetを設定
+
       bgmDuration = sound.duration();
-      timeLineLayer.width(bgmDuration*pxPerSec);
+      bgmBeatsDuration = bgmDuration/(60/globalBPM);
+      timeLineLayer.width(bgmBeatsDuration*pxPerBeat);
+      clearVerticalLine();
+      setVerticalLine();
+      stage.batchDraw();
     })
     playingTime = 0;
-    seekOffsetTime = 0;
+    playingTiming = 0;
   }
 }
 
@@ -230,15 +273,15 @@ function BGMLoad() {
 var countDelIndex = e => {
   // 右クリックのとき
   if (e.evt.button === 2) {
-    document.getElementById('addNodeButton').style.display = 'none';
-    document.getElementById('delNodeButton').style.display = 'block';
+    document.getElementById('addNoteButton').style.display = 'none';
+    document.getElementById('delNoteButton').style.display = 'block';
 
     // 消すnotesのインデックスをカウント
     for (var i = 0; i < petifitNotesArray.length; i++) {
       for (var j = 0; j < petifitNotesArray[i].length; j++) {
         if (e.target === petifitNotesArray[i][j].point) {
-          delNodeIndex_i = i;
-          delNodeIndex_j = j;
+          delNoteIndex_i = i;
+          delNoteIndex_j = j;
         }
       }
     }
@@ -247,9 +290,6 @@ var countDelIndex = e => {
 
 function LoadBGMCSV() {
   var res = CSVtoArray(CSVdata);
-  var bpmElm = document.getElementById('bpm-input-form');
-  var bpm = parseFloat(bpmElm.value);
-  globalBPM = bpm;
 
   for (var i = 0; i < res.length; i++) {
     var timing = parseFloat(res[i][0]);
@@ -259,7 +299,7 @@ function LoadBGMCSV() {
 
       var inputNum = parseInt(e);
       if (petifitNotesArray[inputNum] == undefined) petifitNotesArray[inputNum] = [];
-      var newNotes = CreateNotes(timing*(60/bpm), inputNum);
+      var newNotes = CreateNotes(timing, inputNum);
 
       // 右クリックイベント
       newNotes.point.on('click', countDelIndex);
@@ -271,12 +311,12 @@ function LoadBGMCSV() {
   }
 }
 
-function CreateNotes(time, inputNum) {
-  var _time = time + petifitOffsetTimeArray[inputNum];
+function CreateNotes(timimg, inputNum) {
+  var _timing = timimg + petifitOffsetTimingArray[inputNum];
 
   var newCircle = new Konva.Circle({
-    x: _time*pxPerSec,
-    y: topY + timeDisplayBarHeihgt + seekBarHeight + (inputNum+0.5)*petifitRowHeight,
+    x: _timing*pxPerBeat,
+    y: topY + timingDisplayBarHeihgt + seekBarHeight + (inputNum+0.5)*petifitRowHeight,
     radius: 3.5,
     fill: 'blue',
     draggable: true,
@@ -291,24 +331,39 @@ function CreateNotes(time, inputNum) {
   stage.batchDraw();
 
   // オブジェクト生成
-  var notesObj = {time : _time, point: newCircle, inputNum};
+  var notesObj = {timing : _timing, point: newCircle, inputNum};
 
   notesObj.point.on('dragmove', function () {
-    console.log('dragmove');
-    notesObj.time = notesObj.point.x()/pxPerSec;
+    notesObj.timing = notesObj.point.x()/pxPerBeat;
   });
 
-  notesObj.point.on('dragend', function () {
-    console.log(notesObj.point.x());
+  notesObj.point.on('dragend', function (e) {
     if (notesObj.point.x() < 0) {
-      console.log('a1');
-      notesObj.time = 0;
+      notesObj.timing = 0;
       notesObj.point.x(0);
       stage.batchDraw();
     }
     else {
-      notesObj.time = notesObj.point.x()/pxPerSec;
+      notesObj.timing = notesObj.point.x()/pxPerBeat;
     }
+
+    console.log(petifitNotesArray)
+    var elm;
+    // 消す自分自身のインデックスをカウント
+    for (var i = 0; i < petifitNotesArray[inputNum].length; i++) {
+      if (e.target === petifitNotesArray[inputNum][i].point) {
+        elm = petifitNotesArray[inputNum][i]
+        console.log(i);
+        petifitNotesArray[inputNum].splice(i, 1);
+      }
+    }
+    console.log(petifitNotesArray)
+    var j;
+    for (j= 0; j < petifitNotesArray[inputNum].length; j++) {
+      if (petifitNotesArray[inputNum][j].timing > elm.timing) break;
+    }
+    petifitNotesArray[inputNum].splice(j, 0, elm);
+    console.log(petifitNotesArray)
   });
 
 
@@ -317,30 +372,47 @@ function CreateNotes(time, inputNum) {
 
 var playIntervalId = null;
 var playFunc = () => {
+  if (sound == null) return;
   // これからくるノーツの配列
   var _notes = new Array(petifitNotesArray.length);
   for (var i = 0; i < petifitNotesArray.length; i++) {
     for (var j = 0; j < petifitNotesArray[i].length; j++) {
-      if (petifitNotesArray[i][j].time > playingTime) break;
+      if (petifitNotesArray[i][j].timing > playingTiming) break;
     }
     _notes[i] = petifitNotesArray[i].slice(j);
   }
 
-  if (!sound.playing()) {
-    soundId = sound.play();
+  var prevTime = new Date().getTime();
+  if (!isPlaying) {
+    isPlaying = true;
+
 
     // 10ミリ秒ごとに更新
     playIntervalId = setInterval(()=>{
-      playingTime = sound.seek();
-      seekCursorGroup.x((playingTime-seekOffsetTime)*pxPerSec);
-      seekTimeText.text(Math.round(playingTime*100)/100);
+
+      if (playingTime < bgmOffset) {
+        _time = new Date().getTime();
+        playingTime += (_time - prevTime)/1000;
+        prevTime = _time;
+      } else if (!sound.playing()) {
+        soundId = sound.play();
+        playingTime = getBgmSeek();
+      } else {
+        playingTime = getBgmSeek();
+      }
+
+      playingTiming = playingTime/(60/globalBPM);
+      console.log(playingTiming, playingTime)
+      console.log(getBgmSeek());
+      seekCursorGroup.x(playingTiming*pxPerBeat);
+      seekTimeText.text(Math.round(playingTiming*100)/100);
       timeLineLayer.batchDraw();
 
       // 効果音
       for (var i = 0; i < petifitNotesArray.length; i++) {
         if (_notes[i].length == 0) continue;
         var j = 0;
-        while (_notes[i][j] != undefined && _notes[i][j].time < playingTime) {
+        while (_notes[i][j] != undefined && _notes[i][j].timing < playingTiming) {
           try {
             rythmSound.play();
             _notes[i].shift();
@@ -351,6 +423,7 @@ var playFunc = () => {
     }, 10);
   }
   else {
+    isPlaying = false;
     sound.pause();
     clearInterval(playIntervalId);
   }
@@ -383,34 +456,34 @@ stage.on('wheel', function (e) {
     timeLineLayer.x(timeLineLayer.x() + dy*scrollAmount);
   }
   else { // 拡大縮小
-    // pxPerSecを更新
-    prevPxPerSec = pxPerSec;
-    pxPerSec += -dy*zoomAmount;
-    if (pxPerSec < 0) pxPerSec = 1;
+    // pxPerBeatを更新
+    prevPxPerBeapxPerBeat = pxPerBeat;
+    pxPerBeat += -dy*zoomAmount;
+    if (pxPerBeat < 0) pxPerBeat = 1;
 
     // seekCursor(赤)の位置を再計算
-    seekCursorGroup.x((playingTime-seekOffsetTime)*pxPerSec);
+    seekCursorGroup.x(playingTiming*pxPerBeat);
 
     // 縦棒の位置を再計算
-    for (var i = 0; i < bgmDuration; i++) {
-      if (pxPerSec < 5 && i % 100 != 0) linePer1sArray[i].opacity(0);
-      else if (pxPerSec < 24 && i % 10 != 0) linePer1sArray[i].opacity(0);
+    for (var i = 0; i < bgmBeatsDuration; i++) {
+      if (pxPerBeat < 5 && i % 100 != 0) linePer1sArray[i].opacity(0);
+      else if (pxPerBeat < 24 && i % 10 != 0) linePer1sArray[i].opacity(0);
       else {
         linePer1sArray[i].opacity(1);
-        linePer1sArray[i].x(pxPerSec*i);
+        linePer1sArray[i].x(pxPerBeat*i);
       }
     }
 
     // notesの位置を再計算
     for (var i = 0; i < petifitNotesArray.length; i++) {
       for (var j = 0; j < petifitNotesArray[i].length; j++) {
-        petifitNotesArray[i][j].point.x(petifitNotesArray[i][j].time * pxPerSec);
+        petifitNotesArray[i][j].point.x(petifitNotesArray[i][j].timing * pxPerBeat);
       }
     }
 
     // マウスカーソルが中心になるようにずらす
     posOnLayer = getRelativePointerPosition(timeLineLayer);
-    timeLineLayer.x(timeLineLayer.x() + (posOnLayer.x - posOnLayer.x/prevPxPerSec*pxPerSec));
+    timeLineLayer.x(timeLineLayer.x() + (posOnLayer.x - posOnLayer.x/prevPxPerBeapxPerBeat*pxPerBeat));
   }
 
   stage.batchDraw();
@@ -418,23 +491,25 @@ stage.on('wheel', function (e) {
 
 
 seekCursorGroup.on('dragmove', function () {
-  playingTime = seekCursorGroup.x()/pxPerSec;
-  seekTimeText.text(Math.round(playingTime*100)/100);
+  playingTiming = seekCursorGroup.x()/pxPerBeat;
+  seekTimeText.text(Math.round(playingTiming*100)/100);
   // stage.batchDraw();
 });
 seekCursorGroup.on('dragend', function () {
   try {
     if (seekCursorGroup.x() < 0) {
       playingTime = 0;
+      playingTiming = 0;
       seekTimeText.text(0);
       seekCursorGroup.x(0);
       stage.batchDraw();
     }
     else {
-      playingTime = seekCursorGroup.x()/pxPerSec;
+      playingTiming = seekCursorGroup.x()/pxPerBeat;
     }
 
-    sound.seek(playingTime);
+    playingTime = playingTiming*(60/globalBPM);
+    setBgmSeek(playingTime);
   } catch (e) {}
 });
 
@@ -456,22 +531,24 @@ stage.on('click', e => {
   var posOnLayer = getRelativePointerPosition(timeLineLayer);
 
   // シークバーのクリック
-  if (posOnStage.y < seekBarHeight + timeDisplayBarHeihgt) {
+  if (posOnStage.y < seekBarHeight + timingDisplayBarHeihgt) {
 
     if (posOnLayer.x < 0) {
-      playingTime = 0;
+      playingTiming = 0;
       seekTimeText.text(0);
       seekCursorGroup.x(0);
     }
     else {
-      playingTime = posOnLayer.x/pxPerSec;
-      seekTimeText.text(Math.round(playingTime*100)/100);
+      playingTiming = posOnLayer.x/pxPerBeat;
+      seekTimeText.text(Math.round(playingTiming*100)/100);
       seekCursorGroup.x(posOnLayer.x);
     }
 
+    isPlaying = false;
     sound.pause();
     clearInterval(playIntervalId);
-    sound.seek(playingTime);
+    playingTime = playingTiming*(60/globalBPM);
+    setBgmSeek(playingTime);
     stage.batchDraw();
   }
 
@@ -482,9 +559,9 @@ stage.on('click', e => {
    */
   // 右クリックのとき
   if (e.evt.button === 2) {
-    addNodeTime = posOnLayer.x/pxPerSec;
-    var _y = posOnLayer.y -  (topY + seekBarHeight + timeDisplayBarHeihgt);
-    addNodeInputNum = Math.floor(_y / petifitRowHeight);
+    addNoteTime = posOnLayer.x/pxPerBeat;
+    var _y = posOnLayer.y -  (topY + seekBarHeight + timingDisplayBarHeihgt);
+    addNoteInputNum = Math.floor(_y / petifitRowHeight);
   }
   /**
    *
@@ -497,22 +574,22 @@ stage.on('click', e => {
  * 右クリック
  *
  */
-document.getElementById('addNodeButton').addEventListener('click', () => {
-  var newNotes = CreateNotes(addNodeTime, addNodeInputNum)
+document.getElementById('addNoteButton').addEventListener('click', () => {
+  var newNotes = CreateNotes(addNoteTime, addNoteInputNum)
   // 右クリックイベント
   newNotes.point.on('click', countDelIndex);
 
   // 適切な位置に挿入する
-  for (var j = 0; j < petifitNotesArray[addNodeInputNum].length; j++) {
-    if (petifitNotesArray[addNodeInputNum][j].time > addNodeTime) break;
+  for (var j = 0; j < petifitNotesArray[addNoteInputNum].length; j++) {
+    if (petifitNotesArray[addNoteInputNum][j].timing > addNoteTime) break;
   }
-  petifitNotesArray[addNodeInputNum].splice(j, 0, newNotes);
+  petifitNotesArray[addNoteInputNum].splice(j, 0, newNotes);
 })
 
-document.getElementById('delNodeButton').addEventListener('click', () => {
-  petifitNotesArray[delNodeIndex_i][delNodeIndex_j].point.destroy();
+document.getElementById('delNoteButton').addEventListener('click', () => {
+  petifitNotesArray[delNoteIndex_i][delNoteIndex_j].point.destroy();
   stage.batchDraw();
-  petifitNotesArray[delNodeIndex_i].splice(delNodeIndex_j, 1);
+  petifitNotesArray[delNoteIndex_i].splice(delNoteIndex_j, 1);
 })
 
 // 右クリックメニュー
@@ -526,8 +603,8 @@ window.onload = function(){
   document.body.addEventListener('click',function (e){
     document.getElementById('contextmenu').style.display="none";
     // 追加ボタンにする
-    document.getElementById('addNodeButton').style.display = 'block';
-    document.getElementById('delNodeButton').style.display = 'none';
+    document.getElementById('addNoteButton').style.display = 'block';
+    document.getElementById('delNoteButton').style.display = 'none';
 
   });
 }
@@ -551,6 +628,7 @@ window.onload = function(){
   e.appendChild(inputElm);
   document.getElementById('petifit-list').appendChild(e);
 
+
   // offsetの変更イベント
   inputElm.addEventListener('change', (e) => {
     if (e.target.value == '') e.target.value = 0;
@@ -558,21 +636,35 @@ window.onload = function(){
     var inputNum = parseInt(e.target.className.slice(-1));
 
     for (var j = 0; j < petifitNotesArray[inputNum].length; j++) {
-      petifitNotesArray[inputNum][j].time -= petifitOffsetTimeArray[inputNum];
-      petifitNotesArray[inputNum][j].time += changedVal;
-      petifitNotesArray[inputNum][j].point.x(petifitNotesArray[inputNum][j].time * pxPerSec);
+      petifitNotesArray[inputNum][j].timing -= petifitOffsetTimingArray[inputNum];
+      petifitNotesArray[inputNum][j].timing += changedVal;
+      petifitNotesArray[inputNum][j].point.x(petifitNotesArray[inputNum][j].timing * pxPerBeat);
     }
-    petifitOffsetTimeArray[inputNum] = changedVal;
+    petifitOffsetTimingArray[inputNum] = changedVal;
     stage.batchDraw();
   })
 }
 
 
+document.getElementById('bgm-offset').addEventListener('change', (e) => {
+  if (e.target.value == '') e.target.value = 0;
+  changedVal = parseFloat(e.target.value);
+
+  bgmOffset = changedVal;
+
+  playingTiming = seekCursorGroup.x()/pxPerBeat;
+  playingTime = playingTiming * (60/globalBPM);
+  setBgmSeek(playingTime);
+
+
+  stage.batchDraw();
+})
+
 function GenerateCSV() {
   var csvStr = 'Timing,FitPattern,Action\n';
   var joinedArray = petifitNotesArray.reduce((pre,current) => {pre.push(...current);return pre},[]);
   joinedArray.sort(function(a, b) {
-    if (a.time < b.time) {
+    if (a.timing < b.timing) {
         return -1;
     } else {
         return 1;
@@ -581,7 +673,7 @@ function GenerateCSV() {
 
   joinedArray.forEach(function(element){
     var inputNum = element.inputNum;
-    var timing = (element.time-petifitOffsetTimeArray[inputNum])/(60/globalBPM);
+    var timing = (element.timing-petifitOffsetTimingArray[inputNum]);
     csvStr = csvStr.concat(timing.toString()
                   + ','
                   + element.inputNum
@@ -592,6 +684,7 @@ function GenerateCSV() {
 }
 
 
+// コピペ
 function downloadCSV() {
   //ダウンロードするCSVファイル名を指定する
   const filename = "timing.csv";

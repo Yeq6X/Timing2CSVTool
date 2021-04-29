@@ -59,3 +59,13 @@ body {
 #play-button {
   margin-left: 100px;
 }
+
+#offset-block {
+  height: 50px;
+  border-bottom: #000 2px solid;
+  padding: 5px;
+}
+
+#offset-block div, #offset-block input {
+  display: inline-block;
+}
