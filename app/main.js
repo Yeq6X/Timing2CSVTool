@@ -60,6 +60,7 @@ function CSVtoArray(str) {
 var sound = null;
 var soundId = null;
 var isPlaying = false;
+var isSoundPlay = false;
 
 var _date = new Date();
 
@@ -396,7 +397,8 @@ var playFunc = () => {
 
       if (playingTime + (_time - prevTime)/1000 < bgmOffset) {
         playingTime += (_time - prevTime)/1000;
-      } else if (!sound.playing()) {
+      } else if (!isSoundPlay) {
+        isSoundPlay = true;
         if (soundId == null)
           soundId = sound.play();
         else
@@ -427,6 +429,7 @@ var playFunc = () => {
   }
   else {
     isPlaying = false;
+    isSoundPlay = false;
     sound.pause(soundId);
     clearInterval(playIntervalId);
   }
@@ -442,6 +445,7 @@ document.getElementById('reload-button').addEventListener('click', ()=> {
   soundId = null;
   sound.unload();
   sound.load();
+  setBgmSeek(playingTime);
 })
 
 function getRelativePointerPosition(node) {
@@ -554,6 +558,7 @@ stage.on('click', e => {
     }
 
     isPlaying = false;
+    isSoundPlay = false;
     sound.pause(soundId);
     clearInterval(playIntervalId);
     playingTime = playingTiming*(60/globalBPM);
